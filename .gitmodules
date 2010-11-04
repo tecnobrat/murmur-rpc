@@ -1,3 +1,0 @@
-[submodule "dbus"]
-	path = vendor/dbus
-	url = git://github.com/mvidner/ruby-dbus.git
