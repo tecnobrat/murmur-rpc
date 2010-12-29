@@ -393,7 +393,7 @@ module Murmur
             ["name", ::Ice::T_string],
             ["_hash", ::Ice::T_string],
             ["reason", ::Ice::T_string],
-            ["start", ::Ice::T_long],
+            ["start", ::Ice::T_int],
             ["duration", ::Ice::T_int]
         ])
     end
@@ -845,6 +845,24 @@ module Murmur
         InvalidCallbackException::ICE_TYPE = T_InvalidCallbackException
     end
 
+    if not defined?(::Murmur::InvalidSecretException)
+        class InvalidSecretException < ::Murmur::MurmurException
+            def initialize
+            end
+
+            def to_s
+                'Murmur::InvalidSecretException'
+            end
+
+            def inspect
+                return ::Ice::__stringifyException(self)
+            end
+        end
+
+        T_InvalidSecretException = ::Ice::__defineException('::Murmur::InvalidSecretException', InvalidSecretException, ::Murmur::T_MurmurException, [])
+        InvalidSecretException::ICE_TYPE = T_InvalidSecretException
+    end
+
     if not defined?(::Murmur::ServerCallback_mixin)
         module ServerCallback_mixin
             include ::Ice::Object_mixin
@@ -1200,6 +1218,7 @@ module Murmur
             # def getLog(first, last, current=nil)
             # def getUsers(current=nil)
             # def getChannels(current=nil)
+            # def getCertificateList(session, current=nil)
             # def getTree(current=nil)
             # def getBans(current=nil)
             # def setBans(bans, current=nil)
@@ -1230,6 +1249,7 @@ module Murmur
             # def verifyPassword(name, pw, current=nil)
             # def getTexture(userid, current=nil)
             # def setTexture(userid, tex, current=nil)
+            # def getUptime(current=nil)
 
             def inspect
                 ::Ice::__stringify(self, T_Server)
@@ -1302,6 +1322,10 @@ module Murmur
 
             def getChannels(_ctx=nil)
                 Server_mixin::OP_getChannels.invoke(self, [], _ctx)
+            end
+
+            def getCertificateList(session, _ctx=nil)
+                Server_mixin::OP_getCertificateList.invoke(self, [session], _ctx)
             end
 
             def getTree(_ctx=nil)
@@ -1423,6 +1447,10 @@ module Murmur
             def setTexture(userid, tex, _ctx=nil)
                 Server_mixin::OP_setTexture.invoke(self, [userid, tex], _ctx)
             end
+
+            def getUptime(_ctx=nil)
+                Server_mixin::OP_getUptime.invoke(self, [], _ctx)
+            end
         end
         class ServerPrx < ::Ice::ObjectPrx
             include ServerPrx_mixin
@@ -1462,6 +1490,7 @@ module Murmur
         Server_mixin::OP_getLog = ::Ice::__defineOperation('getLog', ::Ice::OperationMode::Idempotent, ::Ice::OperationMode::Idempotent, true, [::Ice::T_int, ::Ice::T_int], [], ::Murmur::T_LogList, [])
         Server_mixin::OP_getUsers = ::Ice::__defineOperation('getUsers', ::Ice::OperationMode::Idempotent, ::Ice::OperationMode::Idempotent, true, [], [], ::Murmur::T_UserMap, [::Murmur::T_ServerBootedException])
         Server_mixin::OP_getChannels = ::Ice::__defineOperation('getChannels', ::Ice::OperationMode::Idempotent, ::Ice::OperationMode::Idempotent, true, [], [], ::Murmur::T_ChannelMap, [::Murmur::T_ServerBootedException])
+        Server_mixin::OP_getCertificateList = ::Ice::__defineOperation('getCertificateList', ::Ice::OperationMode::Idempotent, ::Ice::OperationMode::Idempotent, true, [::Ice::T_int], [], ::Murmur::T_CertificateList, [::Murmur::T_ServerBootedException, ::Murmur::T_InvalidSessionException])
         Server_mixin::OP_getTree = ::Ice::__defineOperation('getTree', ::Ice::OperationMode::Idempotent, ::Ice::OperationMode::Idempotent, true, [], [], ::Murmur::T_Tree, [::Murmur::T_ServerBootedException])
         Server_mixin::OP_getBans = ::Ice::__defineOperation('getBans', ::Ice::OperationMode::Idempotent, ::Ice::OperationMode::Idempotent, true, [], [], ::Murmur::T_BanList, [::Murmur::T_ServerBootedException])
         Server_mixin::OP_setBans = ::Ice::__defineOperation('setBans', ::Ice::OperationMode::Idempotent, ::Ice::OperationMode::Idempotent, true, [::Murmur::T_BanList], [], nil, [::Murmur::T_ServerBootedException])
@@ -1492,6 +1521,7 @@ module Murmur
         Server_mixin::OP_verifyPassword = ::Ice::__defineOperation('verifyPassword', ::Ice::OperationMode::Idempotent, ::Ice::OperationMode::Idempotent, true, [::Ice::T_string, ::Ice::T_string], [], ::Ice::T_int, [::Murmur::T_ServerBootedException])
         Server_mixin::OP_getTexture = ::Ice::__defineOperation('getTexture', ::Ice::OperationMode::Idempotent, ::Ice::OperationMode::Idempotent, true, [::Ice::T_int], [], ::Murmur::T_Texture, [::Murmur::T_ServerBootedException, ::Murmur::T_InvalidUserException])
         Server_mixin::OP_setTexture = ::Ice::__defineOperation('setTexture', ::Ice::OperationMode::Idempotent, ::Ice::OperationMode::Idempotent, true, [::Ice::T_int, ::Murmur::T_Texture], [], nil, [::Murmur::T_ServerBootedException, ::Murmur::T_InvalidUserException, ::Murmur::T_InvalidTextureException])
+        Server_mixin::OP_getUptime = ::Ice::__defineOperation('getUptime', ::Ice::OperationMode::Idempotent, ::Ice::OperationMode::Idempotent, true, [], [], ::Ice::T_int, [::Murmur::T_ServerBootedException])
     end
 
     if not defined?(::Murmur::MetaCallback_mixin)
@@ -1587,6 +1617,7 @@ module Murmur
             # def getVersion(current=nil)
             # def addCallback(cb, current=nil)
             # def removeCallback(cb, current=nil)
+            # def getUptime(current=nil)
 
             def inspect
                 ::Ice::__stringify(self, T_Meta)
@@ -1632,6 +1663,10 @@ module Murmur
             def removeCallback(cb, _ctx=nil)
                 Meta_mixin::OP_removeCallback.invoke(self, [cb], _ctx)
             end
+
+            def getUptime(_ctx=nil)
+                Meta_mixin::OP_getUptime.invoke(self, [], _ctx)
+            end
         end
         class MetaPrx < ::Ice::ObjectPrx
             include MetaPrx_mixin
@@ -1664,5 +1699,6 @@ module Murmur
         Meta_mixin::OP_getVersion = ::Ice::__defineOperation('getVersion', ::Ice::OperationMode::Idempotent, ::Ice::OperationMode::Idempotent, true, [], [::Ice::T_int, ::Ice::T_int, ::Ice::T_int, ::Ice::T_string], nil, [])
         Meta_mixin::OP_addCallback = ::Ice::__defineOperation('addCallback', ::Ice::OperationMode::Normal, ::Ice::OperationMode::Normal, true, [::Murmur::T_MetaCallbackPrx], [], nil, [::Murmur::T_InvalidCallbackException])
         Meta_mixin::OP_removeCallback = ::Ice::__defineOperation('removeCallback', ::Ice::OperationMode::Normal, ::Ice::OperationMode::Normal, true, [::Murmur::T_MetaCallbackPrx], [], nil, [::Murmur::T_InvalidCallbackException])
+        Meta_mixin::OP_getUptime = ::Ice::__defineOperation('getUptime', ::Ice::OperationMode::Idempotent, ::Ice::OperationMode::Idempotent, true, [], [], ::Ice::T_int, [])
     end
 end

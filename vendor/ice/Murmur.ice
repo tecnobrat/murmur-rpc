@@ -165,7 +165,7 @@ module Murmur
 		/** Reason for ban. */
 		string reason;
 		/** Date ban was applied in unix time format. */
-		long start;
+		int start;
 		/** Duration of ban. */
 		int duration;
 	};
@@ -237,6 +237,8 @@ module Murmur
 	exception InvalidTextureException extends MurmurException {};
 	/** This is thrown when you supply an invalid callback. */
 	exception InvalidCallbackException extends MurmurException {};
+	/**  This is thrown when you supply the wrong secret in the calling context. */
+	exception InvalidSecretException extends MurmurException {};
 
 	/** Callback interface for servers. You can supply an implementation of this to receive notification
 	 *  messages from the server.
@@ -481,6 +483,12 @@ module Murmur
 		 */
 		idempotent ChannelMap getChannels() throws ServerBootedException;
 
+		/** Fetch certificate of user. This returns the complete certificate chain of a user.
+		 * @param session Connection ID of user. See [User::session].
+		 * @return Certificate list of user.
+		 */
+		idempotent CertificateList getCertificateList(int session) throws ServerBootedException, InvalidSessionException;
+
 		/** Fetch all channels and connected users as a tree. This retrieves an easy-to-use representation of the server
 		 *  as a tree. This is primarily used for viewing the state of the server on a webpage.
 		 * @return Recursive tree of all channels and connected users.
@@ -616,7 +624,7 @@ module Murmur
 		idempotent void removeUserFromGroup(int channelid, int session, string group) throws ServerBootedException, InvalidChannelException, InvalidSessionException;
 
 		/** Redirect whisper targets for user. If set, whenever a user tries to whisper to group "source", the whisper will be redirected to group "target".
-		 * This is intended for context groups.
+		 * To remove a redirect pass an empty target string. This is intended for context groups.
 		 * @param session Connection ID of user. See [User::session].
 		 * @param source Group name to redirect from.
 		 * @param target Group name to redirect to.
@@ -682,6 +690,11 @@ module Murmur
 		 * @param tex Texture to set for the user, or an empty texture to remove the existing texture.
 		 */
 		idempotent void setTexture(int userid, Texture tex) throws ServerBootedException, InvalidUserException, InvalidTextureException;
+
+		/** Get virtual server uptime.
+		 * @return Uptime of the virtual server in seconds
+		 */
+		idempotent int getUptime() throws ServerBootedException;
 	};
 
 	/** Callback interface for Meta. You can supply an implementation of this to recieve notifications
@@ -760,5 +773,10 @@ module Murmur
 		 * @param cb Callback interface to be removed.
 		 */
 		void removeCallback(MetaCallback *cb) throws InvalidCallbackException;
+		
+		/** Get murmur uptime.
+		 * @return Uptime of murmur in seconds
+		 */
+		idempotent int getUptime();
 	};
 };
