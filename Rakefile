@@ -4,7 +4,7 @@ require "rake/gempackagetask"
 require "rake/rdoctask"
 require "spec/rake/spectask"
 
-require 'lib/murmur'
+require 'lib/murmur-rpc'
 
 NAME = 'murmur-rpc'
 VERSION = MurmurRPC::VERSION

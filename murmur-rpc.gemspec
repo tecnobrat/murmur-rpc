@@ -1,4 +1,4 @@
-require File.expand_path("../lib/murmur", __FILE__)
+require File.expand_path("../lib/murmur-rpc", __FILE__)
 
 spec = Gem::Specification.new do |s|
   s.name = 'murmur-rpc'
