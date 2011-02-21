@@ -1,10 +1,12 @@
 /**
  *
  * Information and control of the murmur server. Each server has
- * one [Meta] interface that controls global information, and
- * each virtual server has a [Server] interface.
+ * one {@link Meta} interface that controls global information, and
+ * each virtual server has a {@link Server} interface.
  *
  **/
+
+#include <Ice/SliceChecksumDict.ice>
 
 module Murmur
 {
@@ -26,11 +28,15 @@ module Murmur
 		bool deaf;
 		/** Is the user suppressed by the server? This means the user is not muted, but does not have speech privileges in the current channel. */
 		bool suppress;
+		/** Is the user a priority speaker? */
+		bool prioritySpeaker;
 		/** Is the user self-muted? */
 		bool selfMute;
 		/** Is the user self-deafened? If true, this implies mute. */
 		bool selfDeaf;
-		/** Channel ID the user is in. Matches [Channel::id]. */
+		/** Is the User recording? (This flag is read-only and cannot be changed using setState().) **/
+		bool recording;
+		/** Channel ID the user is in. Matches {@link Channel.id}. */
 		int channel;
 		/** The name of the user. */
 		string name;
@@ -183,7 +189,7 @@ module Murmur
 	sequence<Tree> TreeList;
 
 	enum ChannelInfo { ChannelDescription, ChannelPosition };
-	enum UserInfo { UserName, UserEmail, UserComment, UserHash, UserPassword };
+	enum UserInfo { UserName, UserEmail, UserComment, UserHash, UserPassword, UserLastActive };
 
 	dictionary<int, User> UserMap;
 	dictionary<int, Channel> ChannelMap;
@@ -221,7 +227,7 @@ module Murmur
 	};
 
 	exception MurmurException {};
-	/** This is thrown when you specify an invalid session. This may happen if the user has disconnected since your last call to [Server::getUsers]. See [User::session] */
+	/** This is thrown when you specify an invalid session. This may happen if the user has disconnected since your last call to {@link Server.getUsers}. See {@link User.session} */
 	exception InvalidSessionException extends MurmurException {};
 	/** This is thrown when you specify an invalid channel id. This may happen if the channel was removed by another provess. It can also be thrown if you try to add an invalid channel. */
 	exception InvalidChannelException extends MurmurException {};
@@ -229,7 +235,7 @@ module Murmur
 	exception InvalidServerException extends MurmurException {};
 	/** This happens if you try to fetch user or channel state on a stopped server, if you try to stop an already stopped server or start an already started server. */
 	exception ServerBootedException extends MurmurException {};
-	/** This is thrown if [Server::start] fails, and should generally be the cause for some concern. */
+	/** This is thrown if {@link Server.start} fails, and should generally be the cause for some concern. */
 	exception ServerFailureException extends MurmurException {};
 	/** This is thrown when you specify an invalid userid. */
 	exception InvalidUserException extends MurmurException {};
@@ -246,35 +252,35 @@ module Murmur
 	 *  Please note that all callbacks are done asynchronously; murmur does not wait for the callback to
 	 *  complete before continuing processing.
 	 *  Note that callbacks are removed when a server is stopped, so you should have a callback for
-	 *  [MetaCallback::started] which calls [Server::addCallback].
+	 *  {@link MetaCallback.started} which calls {@link Server.addCallback}.
 	 *  @see MetaCallback
-	 *  @see Server::addCallback
+	 *  @see Server.addCallback
 	 */
 	interface ServerCallback {
 		/** Called when a user connects to the server. 
 		 *  @param state State of connected user.
-		 */ 
+		 */
 		idempotent void userConnected(User state);
-		/** Called when a user disconnects from the server. The user has already been removed, so you can no longer use methods like [Server::getState]
+		/** Called when a user disconnects from the server. The user has already been removed, so you can no longer use methods like {@link Server.getState}
 		 *  to retrieve the user's state.
 		 *  @param state State of disconnected user.
-		 */ 
+		 */
 		idempotent void userDisconnected(User state);
 		/** Called when a user state changes. This is called if the user moves, is renamed, is muted, deafened etc.
 		 *  @param state New state of user.
-		 */ 
+		 */
 		idempotent void userStateChanged(User state);
 		/** Called when a new channel is created. 
 		 *  @param state State of new channel.
-		 */ 
+		 */
 		idempotent void channelCreated(Channel state);
-		/** Called when a channel is removed. The channel has already been removed, you can no longer use methods like [Server::getChannelState]
+		/** Called when a channel is removed. The channel has already been removed, you can no longer use methods like {@link Server.getChannelState}
 		 *  @param state State of removed channel.
-		 */ 
+		 */
 		idempotent void channelRemoved(Channel state);
 		/** Called when a new channel state changes. This is called if the channel is moved, renamed or if new links are added.
 		 *  @param state New state of channel.
-		 */ 
+		 */
 		idempotent void channelStateChanged(Channel state);
 	};
 
@@ -285,7 +291,7 @@ module Murmur
 	/** Context for actions in the User menu. */
 	const int ContextUser = 0x04;
 
-	/** Callback interface for context actions. You need to supply one of these for [Server::addContext]. 
+	/** Callback interface for context actions. You need to supply one of these for {@link Server.addContext}. 
 	 *  If an added callback ever throws an exception or goes away, it will be automatically removed.
 	 *  Please note that all callbacks are done asynchronously; murmur does not wait for the callback to
 	 *  complete before continuing processing.
@@ -300,11 +306,11 @@ module Murmur
 		idempotent void contextAction(string action, User usr, int session, int channelid);
 	};
 
-	/** Callback interface for server authentication. You need to supply one of these for [Server::setAuthenticator].
+	/** Callback interface for server authentication. You need to supply one of these for {@link Server.setAuthenticator}.
 	 *  If an added callback ever throws an exception or goes away, it will be automatically removed.
-	 *  Please note that unlike [ServerCallback] and [ServerContextCallback], these methods are called
+	 *  Please note that unlike {@link ServerCallback} and {@link ServerContextCallback}, these methods are called
 	 *  synchronously. If the response lags, the entire murmur server will lag.
-	 *  Also note that, as the method calls are synchronous, making a call to [Server] or [Meta] will
+	 *  Also note that, as the method calls are synchronous, making a call to {@link Server} or {@link Meta} will
 	 *  deadlock the server.
 	 */
 	interface ServerAuthenticator {
@@ -329,7 +335,6 @@ module Murmur
 		/** Fetch information about a user. This is used to retrieve information like email address, keyhash etc. If you
 		 *  want murmur to take care of this information itself, simply return false to fall through.
 		 *  @param id User id.
-		 *  @param key Key of information to be retrieved.
 		 *  @param info Information about user. This needs to include at least "name".
 		 *  @return true if information is present, false to fall through.
 		 */
@@ -341,7 +346,7 @@ module Murmur
 		 */
 		idempotent int nameToId(string name);
 
-		/** Map a user to a User id.
+		/** Map a user id to a username.
 		 *  @param id User id to map.
 		 *  @return Name of user or empty string for unknown id.
 		 */
@@ -357,7 +362,7 @@ module Murmur
 	/** Callback interface for server authentication and registration. This allows you to support both authentication
 	 *  and account updating.
 	 *  You do not need to implement this if all you want is authentication, you only need this if other scripts
-	 *  connected to the same server calls e.g. [Server::setTexture].
+	 *  connected to the same server calls e.g. {@link Server.setTexture}.
 	 *  Almost all of these methods support fall through, meaning murmur should continue the operation against its
 	 *  own database.
 	 */
@@ -387,8 +392,8 @@ module Murmur
 		 */
 		idempotent int setInfo(int id, UserInfoMap info);
 
-		/** Set texture of user registration.
-		 *  @param id Userid of registered user.
+		/** Set texture (now called avatar) of user registration.
+		 *  @param id registrationId of registered user.
 		 *  @param tex New texture.
 		 *  @return 1 for successfull update, 0 for unsuccessfull update, -1 to fall through.
 		 */
@@ -397,149 +402,154 @@ module Murmur
 
 	/** Per-server interface. This includes all methods for configuring and altering
 	 * the state of a single virtual server. You can retrieve a pointer to this interface
-	 * from one of the methods in [Meta].
+	 * from one of the methods in {@link Meta}.
 	 **/
 	["amd"] interface Server {
 		/** Shows if the server currently running (accepting users).
 		 *
 		 * @return Run-state of server.
 		 */
-		idempotent bool isRunning();
+		idempotent bool isRunning() throws InvalidSecretException;
 
 		/** Start server. */
-		void start() throws ServerBootedException, ServerFailureException;
+		void start() throws ServerBootedException, ServerFailureException, InvalidSecretException;
 
 		/** Stop server. */
-		void stop() throws ServerBootedException;
+		void stop() throws ServerBootedException, InvalidSecretException;
 
 		/** Delete server and all it's configuration. */
-		void delete() throws ServerBootedException;
+		void delete() throws ServerBootedException, InvalidSecretException;
 
 		/** Fetch the server id.
 		 *
 		 * @return Unique server id.
 		 */
-		idempotent int id();
+		idempotent int id() throws InvalidSecretException;
 
 		/** Add a callback. The callback will receive notifications about changes to users and channels.
 		 *
 		 * @param cb Callback interface which will receive notifications.
 		 * @see removeCallback
 		 */
-		void addCallback(ServerCallback *cb) throws ServerBootedException, InvalidCallbackException;
+		void addCallback(ServerCallback *cb) throws ServerBootedException, InvalidCallbackException, InvalidSecretException;
 
 		/** Remove a callback.
 		 *
 		 * @param cb Callback interface to be removed.
 		 * @see addCallback
 		 */
-		void removeCallback(ServerCallback *cb) throws ServerBootedException, InvalidCallbackException;
+		void removeCallback(ServerCallback *cb) throws ServerBootedException, InvalidCallbackException, InvalidSecretException;
 
 		/** Set external authenticator. If set, all authentications from clients are forwarded to this
 		 *  proxy.
 		 *
 		 * @param auth Authenticator object to perform subsequent authentications.
 		 */
-		void setAuthenticator(ServerAuthenticator *auth) throws ServerBootedException, InvalidCallbackException;
+		void setAuthenticator(ServerAuthenticator *auth) throws ServerBootedException, InvalidCallbackException, InvalidSecretException;
 
 		/** Retrieve configuration item.
 		 * @param key Configuration key.
-		 * @return Configuration value. If this is empty, see [Meta::getDefaultConf]
+		 * @return Configuration value. If this is empty, see {@link Meta.getDefaultConf}
 		 */
-		idempotent string getConf(string key);
+		idempotent string getConf(string key) throws InvalidSecretException;
 
 		/** Retrieve all configuration items.
-		 * @return All configured values. If a value isn't set here, the value from [Meta::getDefaultConf] is used.
+		 * @return All configured values. If a value isn't set here, the value from {@link Meta.getDefaultConf} is used.
 		 */
-		idempotent ConfigMap getAllConf();
+		idempotent ConfigMap getAllConf() throws InvalidSecretException;
 
 		/** Set a configuration item.
 		 * @param key Configuration key.
 		 * @param value Configuration value.
 		 */
-		idempotent void setConf(string key, string value);
+		idempotent void setConf(string key, string value) throws InvalidSecretException;
 
-		/** Set superuser password. This is just a convenience for using [updateRegistration] on user id 0.
+		/** Set superuser password. This is just a convenience for using {@link updateRegistration} on user id 0.
 		 * @param pw Password.
 		 */
-		idempotent void setSuperuserPassword(string pw);
+		idempotent void setSuperuserPassword(string pw) throws InvalidSecretException;
 
 		/** Fetch log entries.
 		 * @param first Lowest numbered entry to fetch. 0 is the most recent item.
 		 * @param last Last entry to fetch.
 		 * @return List of log entries.
 		 */
-		idempotent LogList getLog(int first, int last);
+		idempotent LogList getLog(int first, int last) throws InvalidSecretException;
+
+		/** Fetch length of log
+		 * @return Number of entries in log
+		 */
+		idempotent int getLogLen() throws InvalidSecretException;
 
 		/** Fetch all users. This returns all currently connected users on the server.
 		 * @return List of connected users.
 		 * @see getState
 		 */
-		idempotent UserMap getUsers() throws ServerBootedException;
+		idempotent UserMap getUsers() throws ServerBootedException, InvalidSecretException;
 
 		/** Fetch all channels. This returns all defined channels on the server. The root channel is always channel 0.
 		 * @return List of defined channels.
 		 * @see getChannelState
 		 */
-		idempotent ChannelMap getChannels() throws ServerBootedException;
+		idempotent ChannelMap getChannels() throws ServerBootedException, InvalidSecretException;
 
 		/** Fetch certificate of user. This returns the complete certificate chain of a user.
-		 * @param session Connection ID of user. See [User::session].
+		 * @param session Connection ID of user. See {@link User.session}.
 		 * @return Certificate list of user.
 		 */
-		idempotent CertificateList getCertificateList(int session) throws ServerBootedException, InvalidSessionException;
+		idempotent CertificateList getCertificateList(int session) throws ServerBootedException, InvalidSessionException, InvalidSecretException;
 
 		/** Fetch all channels and connected users as a tree. This retrieves an easy-to-use representation of the server
 		 *  as a tree. This is primarily used for viewing the state of the server on a webpage.
 		 * @return Recursive tree of all channels and connected users.
 		 */
-		idempotent Tree getTree() throws ServerBootedException;
+		idempotent Tree getTree() throws ServerBootedException, InvalidSecretException;
 
 		/** Fetch all current IP bans on the server.
 		 * @return List of bans.
 		 */
-		idempotent BanList getBans() throws ServerBootedException;
+		idempotent BanList getBans() throws ServerBootedException, InvalidSecretException;
 
-		/** Set all current IP bans on the server. This will replace any bans already present, so if you want to add a ban, be sure to call [getBans] and then
+		/** Set all current IP bans on the server. This will replace any bans already present, so if you want to add a ban, be sure to call {@link getBans} and then
 		 *  append to the returned list before calling this method.
 		 * @param bans List of bans.
 		 */
-		idempotent void setBans(BanList bans) throws ServerBootedException;
+		idempotent void setBans(BanList bans) throws ServerBootedException, InvalidSecretException;
 
 		/** Kick a user. The user is not banned, and is free to rejoin the server.
-		 * @param session Connection ID of user. See [User::session].
+		 * @param session Connection ID of user. See {@link User.session}.
 		 * @param reason Text message to show when user is kicked.
 		 */
-		void kickUser(int session, string reason) throws ServerBootedException, InvalidSessionException;
+		void kickUser(int session, string reason) throws ServerBootedException, InvalidSessionException, InvalidSecretException;
 
 		/** Get state of a single connected user. 
-		 * @param session Connection ID of user. See [User::session].
+		 * @param session Connection ID of user. See {@link User.session}.
 		 * @return State of connected user.
 		 * @see setState
 		 * @see getUsers
 		 */
-		idempotent User getState(int session) throws ServerBootedException, InvalidSessionException;
+		idempotent User getState(int session) throws ServerBootedException, InvalidSessionException, InvalidSecretException;
 
 		/** Set user state. You can use this to move, mute and deafen users.
 		 * @param state User state to set.
 		 * @see getState
 		 */
-		idempotent void setState(User state) throws ServerBootedException, InvalidSessionException, InvalidChannelException;
+		idempotent void setState(User state) throws ServerBootedException, InvalidSessionException, InvalidChannelException, InvalidSecretException;
 
 		/** Send text message to a single user.
-		 * @param session Connection ID of user. See [User::session].
+		 * @param session Connection ID of user. See {@link User.session}.
 		 * @param text Message to send.
 		 * @see sendMessageChannel
 		 */
-		void sendMessage(int session, string text) throws ServerBootedException, InvalidSessionException;
+		void sendMessage(int session, string text) throws ServerBootedException, InvalidSessionException, InvalidSecretException;
 
 		/** Check if user is permitted to perform action.
-		 * @param session Connection ID of user. See [User::session].
-		 * @param channelid ID of Channel. See [Channel::id].
+		 * @param session Connection ID of user. See {@link User.session}.
+		 * @param channelid ID of Channel. See {@link Channel.id}.
 		 * @param perm Permission bits to check.
 		 * @return true if any of the permissions in perm were set for the user.
 		 */
-		bool hasPermission(int session, int channelid, int perm) throws ServerBootedException, InvalidSessionException, InvalidChannelException;
+		bool hasPermission(int session, int channelid, int perm) throws ServerBootedException, InvalidSessionException, InvalidChannelException, InvalidSecretException;
 
 		/** Add a context callback. This is done per user, and will add a context menu action for the user.
 		 *
@@ -547,163 +557,163 @@ module Murmur
 		 * @param action Action string, a unique name to associate with the action.
 		 * @param text Name of action shown to user.
 		 * @param cb Callback interface which will receive notifications.
-		 * @param ctx Context this should be used in. Needs to be one or a combination of [ContextServer], [ContextChannel] and [ContextUser].
+		 * @param ctx Context this should be used in. Needs to be one or a combination of {@link ContextServer}, {@link ContextChannel} and {@link ContextUser}.
 		 * @see removeContextCallback
 		 */
-		void addContextCallback(int session, string action, string text, ServerContextCallback *cb, int ctx) throws ServerBootedException, InvalidCallbackException;
+		void addContextCallback(int session, string action, string text, ServerContextCallback *cb, int ctx) throws ServerBootedException, InvalidCallbackException, InvalidSecretException;
 
 		/** Remove a callback.
 		 *
 		 * @param cb Callback interface to be removed. This callback will be removed from all from all users.
 		 * @see addContextCallback
 		 */
-		void removeContextCallback(ServerContextCallback *cb) throws ServerBootedException, InvalidCallbackException;
+		void removeContextCallback(ServerContextCallback *cb) throws ServerBootedException, InvalidCallbackException, InvalidSecretException;
 		
 		/** Get state of single channel.
-		 * @param channelid ID of Channel. See [Channel::id].
+		 * @param channelid ID of Channel. See {@link Channel.id}.
 		 * @return State of channel.
 		 * @see setChannelState
 		 * @see getChannels
 		 */
-		idempotent Channel getChannelState(int channelid) throws ServerBootedException, InvalidChannelException;
+		idempotent Channel getChannelState(int channelid) throws ServerBootedException, InvalidChannelException, InvalidSecretException;
 
 		/** Set state of a single channel. You can use this to move or relink channels.
 		 * @param state Channel state to set.
 		 * @see getChannelState
 		 */
-		idempotent void setChannelState(Channel state) throws ServerBootedException, InvalidChannelException;
+		idempotent void setChannelState(Channel state) throws ServerBootedException, InvalidChannelException, InvalidSecretException;
 
 		/** Remove a channel and all its subchannels.
-		 * @param channelid ID of Channel. See [Channel::id].
+		 * @param channelid ID of Channel. See {@link Channel.id}.
 		 */
-		void removeChannel(int channelid) throws ServerBootedException, InvalidChannelException;
+		void removeChannel(int channelid) throws ServerBootedException, InvalidChannelException, InvalidSecretException;
 
 		/** Add a new channel.
 		 * @param name Name of new channel.
-		 * @param parent Channel ID of parent channel. See [Channel::id].
+		 * @param parent Channel ID of parent channel. See {@link Channel.id}.
 		 * @return ID of newly created channel.
 		 */
-		int addChannel(string name, int parent) throws ServerBootedException, InvalidChannelException;
+		int addChannel(string name, int parent) throws ServerBootedException, InvalidChannelException, InvalidSecretException;
 
 		/** Send text message to channel or a tree of channels.
-		 * @param channelid Channel ID of channel to send to. See [Channel::id].
+		 * @param channelid Channel ID of channel to send to. See {@link Channel.id}.
 		 * @param tree If true, the message will be sent to the channel and all its subchannels.
 		 * @param text Message to send.
 		 * @see sendMessage
 		 */
-		void sendMessageChannel(int channelid, bool tree, string text) throws ServerBootedException, InvalidChannelException;
+		void sendMessageChannel(int channelid, bool tree, string text) throws ServerBootedException, InvalidChannelException, InvalidSecretException;
 
 		/** Retrieve ACLs and Groups on a channel.
-		 * @param channelid Channel ID of channel to fetch from. See [Channel::id].
+		 * @param channelid Channel ID of channel to fetch from. See {@link Channel.id}.
 		 * @param acls List of ACLs on the channel. This will include inherited ACLs.
 		 * @param groups List of groups on the channel. This will include inherited groups.
 		 * @param inherit Does this channel inherit ACLs from the parent channel?
 		 */
-		idempotent void getACL(int channelid, out ACLList acls, out GroupList groups, out bool inherit) throws ServerBootedException, InvalidChannelException;
+		idempotent void getACL(int channelid, out ACLList acls, out GroupList groups, out bool inherit) throws ServerBootedException, InvalidChannelException, InvalidSecretException;
 
 		/** Set ACLs and Groups on a channel. Note that this will replace all existing ACLs and groups on the channel.
-		 * @param channelid Channel ID of channel to fetch from. See [Channel::id].
+		 * @param channelid Channel ID of channel to fetch from. See {@link Channel.id}.
 		 * @param acls List of ACLs on the channel.
 		 * @param groups List of groups on the channel.
 		 * @param inherit Should this channel inherit ACLs from the parent channel?
 		 */
-		idempotent void setACL(int channelid, ACLList acls, GroupList groups, bool inherit) throws ServerBootedException, InvalidChannelException;
+		idempotent void setACL(int channelid, ACLList acls, GroupList groups, bool inherit) throws ServerBootedException, InvalidChannelException, InvalidSecretException;
 
 		/** Temporarily add a user to a group on a channel. This state is not saved, and is intended for temporary memberships.
-		 * @param channelid Channel ID of channel to add to. See [Channel::id].
-		 * @param session Connection ID of user. See [User::session].
+		 * @param channelid Channel ID of channel to add to. See {@link Channel.id}.
+		 * @param session Connection ID of user. See {@link User.session}.
 		 * @param group Group name to add to.
 		 */
-		idempotent void addUserToGroup(int channelid, int session, string group) throws ServerBootedException, InvalidChannelException, InvalidSessionException;
+		idempotent void addUserToGroup(int channelid, int session, string group) throws ServerBootedException, InvalidChannelException, InvalidSessionException, InvalidSecretException;
 
 		/** Remove a user from a temporary group membership on a channel. This state is not saved, and is intended for temporary memberships.
-		 * @param channelid Channel ID of channel to add to. See [Channel::id].
-		 * @param session Connection ID of user. See [User::session].
+		 * @param channelid Channel ID of channel to add to. See {@link Channel.id}.
+		 * @param session Connection ID of user. See {@link User.session}.
 		 * @param group Group name to remove from.
 		 */
-		idempotent void removeUserFromGroup(int channelid, int session, string group) throws ServerBootedException, InvalidChannelException, InvalidSessionException;
+		idempotent void removeUserFromGroup(int channelid, int session, string group) throws ServerBootedException, InvalidChannelException, InvalidSessionException, InvalidSecretException;
 
 		/** Redirect whisper targets for user. If set, whenever a user tries to whisper to group "source", the whisper will be redirected to group "target".
 		 * To remove a redirect pass an empty target string. This is intended for context groups.
-		 * @param session Connection ID of user. See [User::session].
+		 * @param session Connection ID of user. See {@link User.session}.
 		 * @param source Group name to redirect from.
 		 * @param target Group name to redirect to.
 		 */
-		idempotent void redirectWhisperGroup(int session, string source, string target) throws ServerBootedException, InvalidSessionException;
+		idempotent void redirectWhisperGroup(int session, string source, string target) throws ServerBootedException, InvalidSessionException, InvalidSecretException;
 
-		/** Map a list of [User::userid] to a matching name.
+		/** Map a list of {@link User.userid} to a matching name.
 		 * @param List of ids.
 		 * @return Matching list of names, with an empty string representing invalid or unknown ids.
 		 */
-		idempotent NameMap getUserNames(IdList ids) throws ServerBootedException;
+		idempotent NameMap getUserNames(IdList ids) throws ServerBootedException, InvalidSecretException;
 
 		/** Map a list of user names to a matching id.
 		 * @param List of names.
 		 * @reuturn List of matching ids, with -1 representing invalid or unknown user names.
 		 */
-		idempotent IdMap getUserIds(NameList names) throws ServerBootedException;
+		idempotent IdMap getUserIds(NameList names) throws ServerBootedException, InvalidSecretException;
 
 		/** Register a new user.
 		 * @param info Information about new user. Must include at least "name".
-		 * @return The ID of the user. See [RegisteredUser::userid].
+		 * @return The ID of the user. See {@link RegisteredUser.userid}.
 		 */
-		int registerUser(UserInfoMap info) throws ServerBootedException, InvalidUserException;
+		int registerUser(UserInfoMap info) throws ServerBootedException, InvalidUserException, InvalidSecretException;
 
 		/** Remove a user registration.
-		 * @param userid ID of registered user. See [RegisteredUser::userid].
+		 * @param userid ID of registered user. See {@link RegisteredUser.userid}.
 		 */
-		void unregisterUser(int userid) throws ServerBootedException, InvalidUserException;
+		void unregisterUser(int userid) throws ServerBootedException, InvalidUserException, InvalidSecretException;
 
 		/** Update the registration for a user. You can use this to set the email or password of a user,
 		 * and can also use it to change the user's name.
 		 * @param registration Updated registration record.
 		 */
-		idempotent void updateRegistration(int userid, UserInfoMap info) throws ServerBootedException, InvalidUserException;
+		idempotent void updateRegistration(int userid, UserInfoMap info) throws ServerBootedException, InvalidUserException, InvalidSecretException;
 
 		/** Fetch registration for a single user.
-		 * @param userid ID of registered user. See [RegisteredUser::userid].
+		 * @param userid ID of registered user. See {@link RegisteredUser.userid}.
 		 * @return Registration record.
 		 */
-		idempotent UserInfoMap getRegistration(int userid) throws ServerBootedException, InvalidUserException;
+		idempotent UserInfoMap getRegistration(int userid) throws ServerBootedException, InvalidUserException, InvalidSecretException;
 
 		/** Fetch a group of registered users.
 		 * @param filter Substring of user name. If blank, will retrieve all registered users.
 		 * @return List of registration records.
 		 */
-		idempotent NameMap getRegisteredUsers(string filter) throws ServerBootedException;
+		idempotent NameMap getRegisteredUsers(string filter) throws ServerBootedException, InvalidSecretException;
 
 		/** Verify the password of a user. You can use this to verify a user's credentials.
-		 * @param name User name. See [RegisteredUser::name].
+		 * @param name User name. See {@link RegisteredUser.name}.
 		 * @param pw User password.
-		 * @return User ID of registered user (See [RegisteredUser::userid]), -1 for failed authentication or -2 for unknown usernames.
+		 * @return User ID of registered user (See {@link RegisteredUser.userid}), -1 for failed authentication or -2 for unknown usernames.
 		 */
-		idempotent int verifyPassword(string name, string pw) throws ServerBootedException;
+		idempotent int verifyPassword(string name, string pw) throws ServerBootedException, InvalidSecretException;
 
 		/** Fetch user texture. Textures are stored as zlib compress()ed 600x60 32-bit BGRA data.
-		 * @param userid ID of registered user. See [RegisteredUser::userid].
+		 * @param userid ID of registered user. See {@link RegisteredUser.userid}.
 		 * @return Custom texture associated with user or an empty texture.
 		 */
-		idempotent Texture getTexture(int userid) throws ServerBootedException, InvalidUserException;
+		idempotent Texture getTexture(int userid) throws ServerBootedException, InvalidUserException, InvalidSecretException;
 
-		/** Set user texture. The texture is a 600x60 32-bit BGRA raw texture, optionally zlib compress()ed.
-		 * @param userid ID of registered user. See [RegisteredUser::userid].
-		 * @param tex Texture to set for the user, or an empty texture to remove the existing texture.
+		/** Set a user texture (now called avatar).
+		 * @param userid ID of registered user. See {@link RegisteredUser.userid}.
+		 * @param tex Texture (as a Byte-Array) to set for the user, or an empty texture to remove the existing texture.
 		 */
-		idempotent void setTexture(int userid, Texture tex) throws ServerBootedException, InvalidUserException, InvalidTextureException;
+		idempotent void setTexture(int userid, Texture tex) throws ServerBootedException, InvalidUserException, InvalidTextureException, InvalidSecretException;
 
 		/** Get virtual server uptime.
 		 * @return Uptime of the virtual server in seconds
 		 */
-		idempotent int getUptime() throws ServerBootedException;
+		idempotent int getUptime() throws ServerBootedException, InvalidSecretException;
 	};
 
-	/** Callback interface for Meta. You can supply an implementation of this to recieve notifications
+	/** Callback interface for Meta. You can supply an implementation of this to receive notifications
 	 *  when servers are stopped or started.
 	 *  If an added callback ever throws an exception or goes away, it will be automatically removed.
 	 *  Please note that all callbacks are done asynchronously; murmur does not wait for the callback to
 	 *  complete before continuing processing.
 	 *  @see ServerCallback
-	 *  @see Meta::addCallback
+	 *  @see Meta.addCallback
 	 */
 	interface MetaCallback {
 		/** Called when a server is started. The server is up and running when this event is sent, so all methods that 
@@ -721,29 +731,29 @@ module Murmur
 
 	sequence<Server *> ServerList;
 
-	/** This is the meta interface. It is primarily used for retrieving the [Server] interfaces for each individual server.
+	/** This is the meta interface. It is primarily used for retrieving the {@link Server} interfaces for each individual server.
 	 **/
 	["amd"] interface Meta {
 		/** Fetch interface to specific server.
-		 * @param id Server ID. See [Server::getId].
+		 * @param id Server ID. See {@link Server.getId}.
 		 * @return Interface for specified server, or a null proxy if id is invalid.
 		 */
-		idempotent Server *getServer(int id);
+		idempotent Server *getServer(int id) throws InvalidSecretException;
 
-		/** Create a new server. Call [Server::getId] on the returned interface to find it's ID.
+		/** Create a new server. Call {@link Server.getId} on the returned interface to find it's ID.
 		 * @return Interface for new server.
 		 */
-		Server *newServer();
+		Server *newServer() throws InvalidSecretException;
 
 		/** Fetch list of all currently running servers.
 		 * @return List of interfaces for running servers.
 		 */
-		idempotent ServerList getBootedServers();
+		idempotent ServerList getBootedServers() throws InvalidSecretException;
 
 		/** Fetch list of all defined servers.
 		 * @return List of interfaces for all servers.
 		 */
-		idempotent ServerList getAllServers();
+		idempotent ServerList getAllServers() throws InvalidSecretException;
 
 		/** Fetch default configuraion. This returns the configuration items that were set in the configuration file, or
 		 * the built-in default. The individual servers will use these values unless they have been overridden in the
@@ -751,13 +761,13 @@ module Murmur
 		 * the servers ID - 1 (so that virtual server #1 uses the defined port, server #2 uses port+1 etc).
 		 * @return Default configuration of the servers.
 		 */
-		idempotent ConfigMap getDefaultConf();
+		idempotent ConfigMap getDefaultConf() throws InvalidSecretException;
 
 		/** Fetch version of Murmur. 
 		 * @param major Major version.
 		 * @param minor Minor version.
 		 * @param patch Patchlevel.
-		 * @param text Textual representation of version. Note that this may not match the [major], [minor] and [patch] levels, as it
+		 * @param text Textual representation of version. Note that this may not match the {@link major}, {@link minor} and {@link patch} levels, as it
 		 *   may be simply the compile date or the SVN revision. This is usually the text you want to present to users.
 		 */
 		idempotent void getVersion(out int major, out int minor, out int patch, out string text);
@@ -766,17 +776,27 @@ module Murmur
 		 *
 		 * @param cb Callback interface which will receive notifications.
 		 */
-		void addCallback(MetaCallback *cb) throws InvalidCallbackException;
+		void addCallback(MetaCallback *cb) throws InvalidCallbackException, InvalidSecretException;
 
 		/** Remove a callback.
 		 *
 		 * @param cb Callback interface to be removed.
 		 */
-		void removeCallback(MetaCallback *cb) throws InvalidCallbackException;
+		void removeCallback(MetaCallback *cb) throws InvalidCallbackException, InvalidSecretException;
 		
 		/** Get murmur uptime.
 		 * @return Uptime of murmur in seconds
 		 */
 		idempotent int getUptime();
+
+		/** Get slice file.
+		 * @return Contents of the slice file server compiled with.
+		 */
+		idempotent string getSlice();
+
+		/** Returns a checksum dict for the slice file.
+		 * @return Checksum dict
+		 */
+		idempotent Ice::SliceChecksumDict getSliceChecksums();
 	};
 };
