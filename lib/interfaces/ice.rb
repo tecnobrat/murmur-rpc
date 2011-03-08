@@ -7,7 +7,7 @@ module Murmur
 		class ::InvalidMetaException < Exception; end
 		class ::Murmur::Ice::InvalidServerException < Exception; end
 		class Meta
-			def initialize(glacierHost = nil, glacierPort = nil, user = nil, pass = nil, host = "127.0.0.1", port = "6502", icesecret = nil)
+			def initialize(glacierHost = nil, glacierPort = nil, user = nil, pass = nil, host = "127.0.0.1", port = "6502", icesecret = nil, proto = "tcp")
 				ic = nil
 				if icesecret and icesecret != ""
 					props = ::Ice::createProperties
@@ -29,8 +29,7 @@ module Murmur
 					@router = ::Glacier2::RouterPrx::uncheckedCast(prx).ice_router(nil)
 					@session = @router.createSession(user, pass)
 				end
-				
-				conn = "tcp -h #{host} -p #{port}"
+				conn = "#{proto} -h #{host} -p #{port}"
 				@meta = add_proxy_router(Murmur::MetaPrx::checkedCast(ic.stringToProxy("Meta:#{conn}")))
 				raise "Invalid proxy" unless @meta
 				
