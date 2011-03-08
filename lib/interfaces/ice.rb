@@ -12,6 +12,7 @@ module Murmur
 				if icesecret and icesecret != ""
 					props = ::Ice::createProperties
 					props.setProperty "Ice.ImplicitContext", "Shared"
+					props.setProperty "Ice.MessageSizeMax", "65536"
 					idd = ::Ice::InitializationData.new
 					idd.properties = props
 					ic = ::Ice::initialize idd
