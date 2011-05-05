@@ -7,11 +7,12 @@ module Murmur
 		class ::InvalidMetaException < Exception; end
 		class ::Murmur::Ice::InvalidServerException < Exception; end
 		class Meta
-			def initialize(glacierHost = nil, glacierPort = nil, user = nil, pass = nil, host = "127.0.0.1", port = "6502", icesecret = nil, idletime = nil)
+			def initialize(glacierHost = nil, glacierPort = nil, user = nil, pass = nil, host = "127.0.0.1", port = "6502", icesecret = nil, connect_timeout=nil, idletime = nil)
 				ic = nil
 				if icesecret and icesecret != ""
 					props = ::Ice::createProperties
 					props.setProperty "Ice.ImplicitContext", "Shared"
+					props.setProperty "Ice.Override.ConnectTimeout", connect_timeout.to_s unless connect_timeout == nil
 					props.setProperty "Ice.MessageSizeMax", "65536"
 					props.setProperty "Ice.ACM.Client", idletime.to_s unless idletime == nil
 					idd = ::Ice::InitializationData.new
