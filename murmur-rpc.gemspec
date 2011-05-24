@@ -4,7 +4,6 @@ spec = Gem::Specification.new do |s|
   s.name = 'murmur-rpc'
   s.version = MurmurRPC::VERSION
   s.platform = Gem::Platform::RUBY
-  s.has_rdoc = true
   s.extra_rdoc_files = ["README.rdoc"]
   s.rdoc_options += ["--quiet", '--title', 'Murmur Ruby RPC', '--main', 'README.rdoc']
   s.summary = "RPC interface for Murmur"
