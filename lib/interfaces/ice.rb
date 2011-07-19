@@ -12,7 +12,7 @@ module Murmur
 				if icesecret and icesecret != ""
 					props = ::Ice::createProperties
 					props.setProperty "Ice.ImplicitContext", "Shared"
-					props.setProperty "Ice.Override.ConnectTimeout", connect_timeout.to_s unless connect_timeout == nil
+					props.setProperty "Ice.Override.Timeout", connect_timeout.to_s unless connect_timeout == nil
 					props.setProperty "Ice.MessageSizeMax", "65536"
 					props.setProperty "Ice.ACM.Client", idletime.to_s unless idletime == nil
 					idd = ::Ice::InitializationData.new
