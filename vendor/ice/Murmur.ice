@@ -64,9 +64,26 @@ module Murmur
 		bool tcponly;
 		/** Idle time. This is how many seconds it is since the user last spoke. Other activity is not counted. */
 		int idlesecs;
+		/** UDP Ping Average. This is the average ping for the user via UDP over the duration of the connection. */
+		float udpPing;
+		/** TCP Ping Average. This is the average ping for the user via TCP over the duration of the connection. */
+		float tcpPing;
 	};
 
 	sequence<int> IntList;
+
+	/** A text message between users.
+	 **/
+	struct TextMessage {
+		/** Sessions (connected users) who were sent this message. */
+		IntList sessions;
+		/** Channels who were sent this message. */
+		IntList channels;
+		/** Trees of channels who were sent this message. */
+		IntList trees;
+		/** The contents of the message. */
+		string text;
+	};
 
 	/** A channel.
 	 **/
@@ -245,6 +262,8 @@ module Murmur
 	exception InvalidCallbackException extends MurmurException {};
 	/**  This is thrown when you supply the wrong secret in the calling context. */
 	exception InvalidSecretException extends MurmurException {};
+	/** This is thrown when the channel operation would excede the channel nesting limit */
+	exception NestingLimitException extends MurmurException {};
 
 	/** Callback interface for servers. You can supply an implementation of this to receive notification
 	 *  messages from the server.
@@ -270,6 +289,11 @@ module Murmur
 		 *  @param state New state of user.
 		 */
 		idempotent void userStateChanged(User state);
+		/** Called when user writes a text message
+		 *  @param state the User sending the message
+		 *  @param message the TextMessage the user has sent
+		 */
+		idempotent void userTextMessage(User state, TextMessage message);
 		/** Called when a new channel is created. 
 		 *  @param state State of new channel.
 		 */
@@ -414,7 +438,10 @@ module Murmur
 		/** Start server. */
 		void start() throws ServerBootedException, ServerFailureException, InvalidSecretException;
 
-		/** Stop server. */
+		/** Stop server.
+		 * Note: Server will be restarted on Murmur restart unless explicitly disabled
+		 *       with setConf("boot", false)
+		 */
 		void stop() throws ServerBootedException, InvalidSecretException;
 
 		/** Delete server and all it's configuration. */
@@ -550,6 +577,13 @@ module Murmur
 		 * @return true if any of the permissions in perm were set for the user.
 		 */
 		bool hasPermission(int session, int channelid, int perm) throws ServerBootedException, InvalidSessionException, InvalidChannelException, InvalidSecretException;
+		
+		/** Return users effective permissions
+		 * @param session Connection ID of user. See {@link User.session}.
+		 * @param channelid ID of Channel. See {@link Channel.id}.
+		 * @return bitfield of allowed actions
+		 */
+		idempotent int effectivePermissions(int session, int channelid) throws ServerBootedException, InvalidSessionException, InvalidChannelException, InvalidSecretException;
 
 		/** Add a context callback. This is done per user, and will add a context menu action for the user.
 		 *
@@ -581,7 +615,7 @@ module Murmur
 		 * @param state Channel state to set.
 		 * @see getChannelState
 		 */
-		idempotent void setChannelState(Channel state) throws ServerBootedException, InvalidChannelException, InvalidSecretException;
+		idempotent void setChannelState(Channel state) throws ServerBootedException, InvalidChannelException, InvalidSecretException, NestingLimitException;
 
 		/** Remove a channel and all its subchannels.
 		 * @param channelid ID of Channel. See {@link Channel.id}.
@@ -593,7 +627,7 @@ module Murmur
 		 * @param parent Channel ID of parent channel. See {@link Channel.id}.
 		 * @return ID of newly created channel.
 		 */
-		int addChannel(string name, int parent) throws ServerBootedException, InvalidChannelException, InvalidSecretException;
+		int addChannel(string name, int parent) throws ServerBootedException, InvalidChannelException, InvalidSecretException, NestingLimitException;
 
 		/** Send text message to channel or a tree of channels.
 		 * @param channelid Channel ID of channel to send to. See {@link Channel.id}.
