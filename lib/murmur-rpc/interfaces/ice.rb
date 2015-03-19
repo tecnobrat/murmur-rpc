@@ -2,7 +2,7 @@ require 'timeout'
 require 'benchmark'
 require 'Glacier2'
 
-require File.join(File.expand_path(File.dirname(__FILE__)), "..", "..", "vendor", "ice", "Murmur.rb")
+require File.join(File.expand_path(File.dirname(__FILE__)), "..", "..", "..", "vendor", "ice", "Murmur.rb")
 
 module Murmur
   module Ice
