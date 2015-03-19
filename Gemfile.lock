@@ -1,0 +1,18 @@
+PATH
+  remote: .
+  specs:
+    murmur-rpc (0.0.8)
+      zeroc-ice (= 3.6b1)
+
+GEM
+  remote: https://rubygems.org/
+  specs:
+    rspec (1.3.0)
+    zeroc-ice (3.6b1)
+
+PLATFORMS
+  ruby
+
+DEPENDENCIES
+  murmur-rpc!
+  rspec (= 1.3.0)
