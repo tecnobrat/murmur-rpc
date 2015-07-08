@@ -16,7 +16,7 @@ module Murmur
           props.setProperty "Ice.ImplicitContext", "Shared"
           props.setProperty "Ice.Override.Timeout", connect_timeout.to_s unless connect_timeout == nil
           props.setProperty "Ice.MessageSizeMax", "65536"
-          props.setProperty "Ice.ACM.Client", idletime.to_s unless idletime == nil
+          props.setProperty "Ice.Default.EncodingVersion", "1.0"
           idd = ::Ice::InitializationData.new
           idd.properties = props
           ic = ::Ice::initialize idd
