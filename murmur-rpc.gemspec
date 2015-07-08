@@ -17,7 +17,7 @@ Gem::Specification.new do |s|
   s.files = %w(README.rdoc Rakefile) + Dir["{spec,lib,vendor}/**/*"]
   s.require_path = "lib"
 
-  s.add_runtime_dependency('zeroc-ice', '3.6b1')
+  s.add_runtime_dependency('zeroc-ice', '3.6.0')
   s.add_development_dependency('rspec', '= 1.3.0')
 end
 
