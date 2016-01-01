@@ -34,7 +34,7 @@ module Murmur
           @session = @router.createSession(user, pass)
         end
         conn = "tcp -h #{host} -p #{port}"
-        @meta = add_proxy_router(Murmur::MetaPrx::checkedCast(ic.stringToProxy("Meta:#{conn}")))
+        @meta = add_proxy_router(Murmur::MetaPrx::uncheckedCast(ic.stringToProxy("Meta:#{conn}")))
         raise "Invalid proxy" unless @meta
 
         @servers = {}
